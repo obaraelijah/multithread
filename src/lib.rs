@@ -1,4 +1,8 @@
-use std::{num::NonZeroUsize, sync::{mpsc, Condvar, Mutex}, thread::JoinHandle};
+use std::{
+    num::NonZeroUsize,
+    sync::{mpsc, Condvar, Mutex},
+    thread::JoinHandle,
+};
 
 pub struct MultiThread {
     current_thread: bool,
@@ -28,7 +32,7 @@ impl MultiThread {
     }
 
     pub fn new_current_thread() -> MultiThread {
-        MultiThread { current_thread: true , senders: Vec::new(), handles: Vec::new() }
+        MultiThread { current_thread: true, senders: Vec::new(), handles: Vec::new() }
     }
 
     pub fn run<F>(&self, job: F)
@@ -51,12 +55,21 @@ impl MultiThread {
     }
 }
 
+impl Drop for MultiThread {
+    fn drop(&mut self) {
+        self.senders.clear();
+        for h in self.handles.drain(..) {
+            let _ = h.join();
+        }
+    }
+}
+
 struct Job<'a> {
     f: &'a (dyn Fn() + Sync),
     _g: JobGuard<'a>,
 }
 
-struct  JobCount {
+struct JobCount {
     mux: Mutex<usize>,
     cv: Condvar,
 }
@@ -88,5 +101,21 @@ impl JobCount {
         if *g == 0 {
             self.cv.notify_all()
         }
+    }
+}
+
+// all active jobs have completed before drop
+impl Drop for JobCount {
+    fn drop(&mut self) {
+        let mut g = self.mux.lock().unwrap();
+        while *g > 0 {
+            g = self.cv.wait(g).unwrap();
+        }
+    }
+}
+
+impl<'a> Drop for JobGuard<'a> {
+    fn drop(&mut self) {
+        self.count.dec()
     }
 }
