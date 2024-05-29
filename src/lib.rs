@@ -35,8 +35,27 @@ struct JobGuard<'a> {
     count: &'a JobCount,
 }
 
+impl<'a> Job<'a> {
+    unsafe fn erase_lifetime(self) -> Job<'static> {
+        std::mem::transmute(self)
+    }
+}
+
 impl JobCount {
     fn new() -> JobCount {
         JobCount { mux: Mutex::new(0), cv: Condvar::new() }
+    }
+
+    fn inc(&self) -> JobGuard<'_> {
+        *self.mux.lock().unwrap() += 1;
+        JobGuard { count: self }
+    }
+
+    fn dec(&self) {
+        let mut g = self.mux.lock().unwrap();
+        *g -= 1;
+        if *g == 0 {
+            self.cv.notify_all()
+        }
     }
 }
