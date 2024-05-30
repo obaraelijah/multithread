@@ -12,6 +12,33 @@ fn main() -> xshell::Result<()> {
     let _e = sh.push_env("RUSTUP_TOOLCHAIN", "stable");
     cmd!(sh, "rustc --version").run()?;
 
+    {
+        let _s = section("BUILD");
+        cmd!(sh, "cargo test --workspace --no-run").run()?;
+    }
+
+    {
+        let _s = section("TEST");
+        cmd!(sh, "cargo test --workspace -- --nocapture").run()?;
+    }
+
+    {
+        let _s = section("PUBLISH");
+
+        let version = cmd!(sh, "cargo pkgid").read()?.rsplit_once('#').unwrap().1.to_string();
+        let tag = format!("v{version}");
+
+        let current_branch = cmd!(sh, "git branch --show-current").read()?;
+        let tag_exists =
+            cmd!(sh, "git tag --list").read()?.split_ascii_whitespace().any(|it| it == &tag);
+
+        if current_branch == "master" && !tag_exists {
+            cmd!(sh, "git tag v{version}").run()?;
+            cmd!(sh, "cargo publish").run()?;
+            cmd!(sh, "git push --tags").run()?;
+        }
+    }
+
     Ok(())
 }
 
