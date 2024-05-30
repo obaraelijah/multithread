@@ -1,6 +1,11 @@
 [package]
 name = "multithread"
-version = "0.1.0"
+version = "0.1.0-pre.4"
+description = "Simple API for data-parallel tasks, rayon-lite"
+categories = [ "concurrency" ]
+license = "MIT"
+repository = "https://github.com/obaraelijah/multithread"
+authors = ["Elijah obara <elijahobara357@gmail.com>"]
 edition = "2021"
 
 [workspace]
